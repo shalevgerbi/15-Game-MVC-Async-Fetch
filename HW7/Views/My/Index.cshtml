@@ -1,0 +1,179 @@
+﻿@model List<HW7.Models.MyModel>
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>15 Game</title>
+    <style type="text/css">
+        .buttonInTable {
+            background: #FFFFFF;
+            font-family: Arial;
+            font-size: xx-large;
+            width: 60px;
+            height: 60px;
+        }
+        table{
+            border-collapse:collapse;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <table>
+            @for (int i=0; i<4; i++)
+            {
+                <tr>
+                    @for(int j = 0; j < 4; j++)
+                {
+                    <td>
+                        <input type="button" id="@(4 * i + j)" value="@Model[4 * i + j].text" style="background-color:#@Model[4*i+j].hexRGB" onclick="myClick()" class="buttonInTable" />
+                    </td>
+                }
+                </tr>
+            }
+        </table>
+    </div>
+</body>
+
+</html>
+<script type="text/javascript">
+    let indexEmpty = 15;
+    let indexPushed;
+
+    window.onload = function () {
+        document.getElementById(indexEmpty).style.visibility = "hidden";
+        document.body.style.backgroundColor = '#FFFFFF';
+    }
+
+    async function myClick() {
+        indexPushed = event.srcElement.id;
+
+        let myJsonObject = new Object();
+
+        myJsonObject.indexPushed = indexPushed;
+        myJsonObject.colorPushed = rgbToHex(document.getElementById(event.srcElement.id).style.backgroundColor);
+        myJsonObject.indexEmpty = indexEmpty;
+        myJsonObject.colorEmpty = rgbToHex(document.body.style.backgroundColor);
+
+        let myJsonString = JSON.stringify(myJsonObject);
+
+        let url = '@Url.Action("currentStepAction","My")';
+
+        let response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                "Accept": 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: myJsonString
+        })
+        if (response.ok) {
+            let myJsonText = await response.text();
+
+            let myJsonObjectTemp = JSON.parse(myJsonText);
+            if (myJsonObjectTemp.text == "false")
+                return;
+
+            let buttonPushed = document.getElementById(indexPushed);
+            let buttonEmpty = document.getElementById(indexEmpty);
+
+            buttonEmpty.value = buttonPushed.value;
+            buttonEmpty.style.backgroundColor = buttonPushed.style.backgroundColor;
+            buttonEmpty.style.visibility = "visible";
+
+            buttonPushed.value = "-1";
+            buttonPushed.style.visibility = "hidden";
+
+            indexEmpty = indexPushed;
+            document.body.style.backgroundColor = myJsonObjectTemp.hexRGB;
+
+            isEnd();
+        }
+        else {
+            alert("HTTP-Error: " + response.status);
+        }
+        
+    }
+    async function isEnd() {
+        let arrTemp = new Array();
+        for (let i = 0; i < 16; i++)
+            arrTemp[i] = document.getElementById(i).value;
+
+        let myJsonString = JSON.stringify(arrTemp);
+
+        let url = '@Url.Action("isEndAction","My")';
+
+        let response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                "Accept": 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: myJsonString
+        })
+        if (response.ok) {
+            let result_bool = await response.text();
+
+            if (result_bool == "True") {
+                setTimeout(function () {
+                    if (confirm("You Won! New Game?")) {
+                        newShuffle();
+                    }
+                    else
+                        window.close();
+
+                }, 100);
+            }
+        }
+        else {
+            alert("HTTP-Error: " + response.status);
+        }
+
+    }
+
+    async function newShuffle() {
+        let url = '@Url.Action("shuffleAction","My")';
+        let response = await fetch(url, {
+            method: 'GET'
+        });
+        if (response.ok) {
+            let myJsonText = await response.text();
+
+            let myJsonObject = JSON.parse(myJsonText);
+            for (let i = 0; i <= 15; i++) {
+                let button = document.getElementById(i);
+                button.value = myJsonObject[i].text
+                button.style.backgroundColor = myJsonObject[i].hexRGB;
+                button.style.visibility = "visible";
+                if (i == 15) {
+                    button.style.visibility = "hidden";
+                    button.style.backgroundColor = "#FFFFFF";
+                    button.value = "-1"
+                }
+
+            }
+            indexEmpty = 15;
+            document.body.style.backgroundColor = "#FFFFFF";
+            
+        }
+    }
+
+    function rgbToHex(color) {
+        if (color.charAt(0) == 'r') {
+            color = color.replace('rgb(', '').replace(')', '').split(',');
+
+            let r = parseInt(color[0], 10).toString(16);
+            let g = parseInt(color[1], 10).toString(16);
+            let b = parseInt(color[2], 10).toString(16);
+            r = r.length == 1 ? '0' + r : r;
+            g = g.length == 1 ? '0' + g : g;
+            b = b.length == 1 ? '0' + b : b;
+            let colorHex = '#' + r + g + b;
+            return colorHex;
+        }
+    }
+</script>
